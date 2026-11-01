@@ -396,7 +396,6 @@ Dependencias principales y documentación:
 - [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg)
 - [OpenAI API](https://platform.openai.com/docs/overview) — integración opcional
 
-> **Licencia del repositorio:** todavía no se ha definido una licencia propia en este README. Antes de publicar o aceptar contribuciones, añade un archivo `LICENSE` con los términos que quieras aplicar al código y revisa las licencias de las dependencias y de los binarios redistribuidos (especialmente FFmpeg y Qt/PySide6). No se debe asumir una licencia open source únicamente porque el código esté disponible en GitHub.
 
 ---
 
