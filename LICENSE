@@ -1,0 +1,118 @@
+LICENCIA DE CÓDIGO FUENTE DISPONIBLE DE MODGAMES44 VIDEO EDITOR
+Versión 1.0 — 31 de octubre de 2026
+
+Copyright (c) 2026 ModGames44. Todos los derechos reservados, salvo los
+expresamente concedidos en esta licencia.
+
+AVISO: Esta licencia permite consultar, usar, modificar y redistribuir
+ModGames44 Video Editor, pero restringe la venta del propio software.
+Por esa razón, NO es una licencia de software libre ni de código abierto
+según la definición de la Open Source Initiative (OSI).
+
+1. ÁMBITO Y DEFINICIONES
+
+«Software»: el código fuente de ModGames44 Video Editor y los archivos
+del proyecto que el titular de sus derechos publique bajo esta licencia.
+«Versión modificada»: cualquier adaptación, bifurcación («fork») o trabajo
+derivado del Software.
+«Comercialización del Software»: ofrecer o entregar el Software o una
+Versión modificada a cambio de un precio, suscripción, pago obligatorio,
+licencia de pago o contraprestación económica por el acceso o la copia.
+No se considera Comercialización del Software el uso del programa para
+crear contenidos, prestar servicios de edición o realizar trabajos
+profesionales, aunque esas actividades generen ingresos.
+
+2. PERMISOS
+
+Sujeto al cumplimiento de estas condiciones, el titular concede una
+licencia no exclusiva, mundial, gratuita y revocable por incumplimiento
+para:
+
+(a) Descargar, ejecutar y utilizar el Software para fines personales,
+educativos, profesionales o empresariales.
+(b) Estudiar su código fuente y modificarlo.
+(c) Compartir gratuitamente copias del Software, su código fuente y
+Versiones modificadas, incluidos repositorios públicos y «forks».
+(d) Utilizar el Software para crear, editar y exportar videos u otros
+contenidos que pueden publicarse, monetizarse, venderse o entregarse a
+clientes. El titular no reclama derechos sobre los contenidos que el
+usuario cree utilizando el Software.
+
+3. RESTRICCIÓN DE VENTA DEL SOFTWARE
+
+Sin autorización previa y por escrito del titular, NO está permitido:
+
+(a) Vender copias del Software o de Versiones modificadas.
+(b) Cobrar por su descarga, acceso, distribución, desbloqueo o licencia.
+(c) Incorporarlo como producto de pago o componente cobrado por separado
+    de un paquete comercial, instalador, suscripción o distribución.
+(d) Eludir estas restricciones mediante cambios de nombre, interfaz,
+    empaquetado o compilación.
+
+Esta restricción se refiere al Software, NO a los videos creados con él ni
+a los servicios de edición prestados utilizando el Software.
+
+4. CONDICIONES DE REDISTRIBUCIÓN
+
+Quien redistribuya gratuitamente el Software o una Versión modificada debe:
+
+(a) Conservar este archivo LICENSE y los avisos de derechos de autor.
+(b) Identificar claramente los cambios relevantes efectuados, si los hay.
+(c) No afirmar que su versión es oficial o está aprobada por ModGames44.
+(d) Transmitir estas mismas condiciones a quienes reciban la copia o la
+    Versión modificada.
+
+No se permite conceder a terceros derechos sobre el Software que
+contradigan esta licencia.
+
+5. NOMBRE, LOGOTIPOS Y MARCAS
+
+El nombre «ModGames44», los logotipos, iconos distintivos y demás signos
+de identidad visual pertenecientes al titular no se licencian para usos
+publicitarios, patrocinios o para identificar una Versión modificada
+como producto oficial. Se permite mencionar «ModGames44 Video Editor»
+de forma descriptiva para reconocer su origen y conservar los créditos.
+Una Versión modificada distribuida públicamente debe distinguirse
+claramente de la versión oficial.
+
+6. COMPONENTES DE TERCEROS
+
+Esta licencia solo se aplica al material del que ModGames44 sea titular
+y que haya publicado expresamente bajo estas condiciones. No cambia las
+licencias de componentes, bibliotecas o herramientas de terceros, como
+Python, PySide6/Qt, FFmpeg o cualesquiera otras dependencias. Cada uno
+conserva sus propios términos, avisos y obligaciones legales. Si un
+archivo incluye una licencia propia, se aplicará esa licencia a dicho
+archivo. Nadie recibe por este documento derechos que ModGames44 no tenga.
+
+7. AUSENCIA DE GARANTÍAS
+
+EL SOFTWARE SE PROPORCIONA «TAL CUAL», SIN GARANTÍAS EXPRESAS NI IMPLÍCITAS,
+EN LA MÁXIMA MEDIDA PERMITIDA POR LA LEY. EL TITULAR NO GARANTIZA QUE EL
+SOFTWARE ESTÉ LIBRE DE ERRORES NI QUE SEA ADECUADO PARA UN FIN DETERMINADO.
+
+8. LIMITACIÓN DE RESPONSABILIDAD
+
+EN LA MÁXIMA MEDIDA PERMITIDA POR LA LEY, EL TITULAR NO SERÁ RESPONSABLE
+POR PÉRDIDAS DE DATOS, INTERRUPCIONES DE ACTIVIDAD NI DAÑOS DIRECTOS O
+INDIRECTOS DERIVADOS DEL USO O LA IMPOSIBILIDAD DE USAR EL SOFTWARE.
+ESTA CLÁUSULA NO EXCLUYE RESPONSABILIDADES QUE LEGALMENTE NO PUEDAN
+EXCLUIRSE.
+
+9. INCUMPLIMIENTO Y AUTORIZACIONES ESPECIALES
+
+Los derechos concedidos a quien incumpla esta licencia quedan suspendidos
+mientras persista el incumplimiento. El titular podrá conceder permisos
+comerciales especiales mediante autorización escrita e independiente.
+
+10. ACEPTACIÓN
+
+El uso, modificación o distribución del Software al amparo de los permisos
+de este documento implica la aceptación de sus condiciones, en la medida
+permitida por la legislación aplicable.
+
+---
+Esta licencia es un texto personalizado, no una licencia estandarizada
+aprobada por la OSI. Se recomienda revisión por un profesional jurídico
+antes de su publicación definitiva, especialmente para su aplicación
+internacional y la compatibilidad con dependencias de terceros.

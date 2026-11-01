@@ -1,0 +1,13 @@
+# imageio-ffmpeg trae FFmpeg para Windows en imageio_ffmpeg/binaries.
+# Nuitka trata los .exe como binarios; el indicador executable va DENTRO
+# de from_filenames (no al mismo nivel que from_filenames).
+- module-name: 'imageio_ffmpeg'
+  dlls:
+    - from_filenames:
+        relative_path: 'binaries'
+        prefixes:
+          - 'ffmpeg-win'
+        suffixes:
+          - 'exe'
+        executable: 'yes'
+      when: 'win32'

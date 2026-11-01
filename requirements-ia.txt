@@ -1,0 +1,2 @@
+# Instalar solo para activar el modo API de OpenAI.
+openai>=1.65,<3
