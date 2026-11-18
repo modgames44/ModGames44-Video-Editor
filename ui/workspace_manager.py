@@ -93,13 +93,20 @@ class WorkspaceManager(QObject):
         else:
             window.addDockWidget(B, get(spec.bottom_main))
 
-        # IA disponible como pestaña optativa pero nunca creada dos veces.
-        ai = get('Asistente IA')
-        window.tabifyDockWidget(get('Efectos (futuro)'), ai)
+        # Una zona de pestañas a cada lado; la Timeline ocupa el ancho.
+        window.tabifyDockWidget(get('Proyecto'),get('Efectos (futuro)'))
+        window.tabifyDockWidget(get('Proyecto'),get('Asistente IA'))
+        window.tabifyDockWidget(get('Proyecto'),get('Herramientas'))
+        if 'Texto y subtítulos' in self.docks:
+            window.tabifyDockWidget(get('Proyecto'),get('Texto y subtítulos'))
+        window.tabifyDockWidget(get('Propiedades'),get('Audio Meter'))
+        if 'Keyframes' in self.docks:
+            window.tabifyDockWidget(get('Propiedades'),get('Keyframes'))
         for name, dock in self.docks.items():
             if name not in spec.hidden:
                 dock.show()
-        ai.hide()
+        if hasattr(get('Proyecto'),'raise_'):get('Proyecto').raise_()
+        if hasattr(get('Propiedades'),'raise_'):get('Propiedades').raise_()
         for name in spec.hidden:
             get(name).hide()
 
@@ -118,23 +125,8 @@ class WorkspaceManager(QObject):
             window.resizeDocks([self.docks[spec.left_top]], [metrics.left], H)
             window.resizeDocks([self.docks[spec.right_top]], [metrics.right], H)
             window.resizeDocks([self.docks[spec.bottom_main]], [metrics.timeline_height], V)
-            if key == 'neon':
-                window.resizeDocks([self.docks[spec.left_top], self.docks[spec.left_bottom]],
-                                   [max(200, round(height * .65)), max(120, round(height * .2))], V)
-                window.resizeDocks([self.docks[spec.right_top], self.docks[spec.right_bottom],
-                                    self.docks[spec.right_extra]],
-                                   [max(180, round(height * .36)),
-                                    max(150, round(height * .30)),
-                                    max(120, round(height * .20))], V)
-            else:
-                window.resizeDocks([self.docks[spec.left_top], self.docks[spec.left_bottom]],
-                                   [max(160, round(height * .42)),
-                                    max(150, round(height * .39))], V)
-                window.resizeDocks([self.docks[spec.right_top], self.docks[spec.right_bottom]],
-                                   [max(180, round(height * .52)),
-                                    max(140, round(height * .27))], V)
-                window.resizeDocks([self.docks[spec.bottom_left], self.docks[spec.bottom_main]],
-                                   [105, max(340, width - 200)], H)
+            window.resizeDocks([self.docks['Proyecto']], [metrics.left], H)
+            window.resizeDocks([self.docks['Propiedades']], [metrics.right], H)
             self._pending_default = False
         except (TypeError, ValueError, RuntimeError):
             # QMainWindow podrá recalcular tras recibir su primer showEvent.

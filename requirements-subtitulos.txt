@@ -1,0 +1,2 @@
+# Opcional: reconocimiento local de voz. Los modelos se descargan al primer uso.
+faster-whisper>=1.2,<2

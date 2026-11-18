@@ -1,10 +1,12 @@
 """Extracción asíncrona de miniaturas y PCM. No bloquea el hilo de Qt."""
 from collections import OrderedDict
 from pathlib import Path
+import os
 import subprocess
 from PySide6.QtCore import QObject, Signal, QRunnable, QThreadPool
 from PySide6.QtGui import QImage
 from services.waveform import get_waveform, get_effect_waveform, effect_signature
+from services.thumb_cache import thumb_path,enforce_limit
 
 try:
     import imageio_ffmpeg
@@ -27,6 +29,13 @@ def frame(path, seconds=0.0, width=160, height=90):
     if suffix not in VIDEO | PICTURES:
         return QImage()
     # Para archivos estáticos no buscamos tiempos >0.
+    cache=None
+    try:
+        cache=thumb_path(path,round(seconds*1000),width,height)
+        if cache.is_file():
+            picture=QImage(str(cache))
+            if not picture.isNull():return picture
+    except (OSError,ValueError):pass
     args = [executable(), '-hide_banner', '-nostdin', '-loglevel', 'error']
     if suffix in VIDEO:
         args += ['-ss', str(max(0, seconds))]
@@ -38,6 +47,18 @@ def frame(path, seconds=0.0, width=160, height=90):
     img = QImage()
     if result.returncode == 0:
         img.loadFromData(result.stdout)
+        if cache is not None and not img.isNull():
+            try:
+                cache.parent.mkdir(parents=True,exist_ok=True)
+                # Los fallos de caché jamás impiden previsualizar.
+                if not cache.exists():
+                    import threading
+                    temp=cache.with_suffix(f'.{os.getpid()}_{threading.get_ident()}.partial.jpg')
+                    temp.write_bytes(result.stdout)
+                    temp.replace(cache)
+                    if int(cache.stem[:4],16)%100==0:
+                        enforce_limit(cache.parent)
+            except OSError:pass
     return img
 
 

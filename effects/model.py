@@ -88,13 +88,29 @@ def add_keyframe(keys, time_ms, values):
     return sorted(updated, key=lambda k:k['time_ms'])
 
 
+# Límites de velocidad de clip (cámara lenta / rápida). Antes 0.25×–4×.
+# 0.01× = 100 veces más lento; 100× = timelapse. FFmpeg exporta cualquier
+# factor (setpts + atempo encadenado); la vista previa a velocidades muy
+# altas puede saltar fotogramas, la exportación es exacta.
+SPEED_MIN = 0.01
+SPEED_MAX = 100.0
+
+
+def is_valid_speed(value):
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return False
+    return isfinite(value) and SPEED_MIN <= value <= SPEED_MAX
+
+
 def change_speed(clips, clip_id, new_speed, min_duration_ms=1):
     """Cambia velocidad sin perder el rango fuente, enlazando A/V.
 
     Al ajustar la duración se preservan los siguientes inicios; no se hace
     ripple-edit automático, evitando mover otros clips accidentalmente.
     """
-    rate = clamp(new_speed, .25, 4.)
+    rate = clamp(new_speed, SPEED_MIN, SPEED_MAX)
     clip = next((c for c in clips if c['id']==clip_id), None)
     if clip is None:
         return False

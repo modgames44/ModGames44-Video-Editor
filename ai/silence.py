@@ -5,7 +5,6 @@ El análisis requiere FFmpeg. No confundir silencios detectados con palabras o i
 from __future__ import annotations
 import re
 import subprocess
-from timeline.model import end
 
 START_RE = re.compile(r'silence_start:\s*([\d.]+)')
 END_RE = re.compile(r'silence_end:\s*([\d.]+)')

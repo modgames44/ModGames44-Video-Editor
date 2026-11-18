@@ -5,7 +5,7 @@ from PySide6.QtGui import QDrag, QIcon, QPixmap
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QListWidget,
                                QListWidgetItem, QHBoxLayout, QFileDialog,
                                QComboBox, QMenu, QAbstractItemView, QLineEdit,
-                               QLabel, QSizePolicy, QApplication)
+                               QLabel, QApplication)
 from ui.responsive_rules import media_columns
 
 

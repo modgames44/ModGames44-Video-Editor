@@ -52,8 +52,20 @@ def main():
     from ui.main_window import MainWindow
     from ui.theme_manager import apply_theme
 
+    from core.error_log import install
+    from core.version import APP_NAME
+
     app = QApplication(sys.argv)
-    app.setApplicationName('ModGames44 Video Editor')
+
+    def notify(exc_type, exc):
+        # Aviso no bloqueante en la barra de estado; el detalle va al log.
+        window = QApplication.activeWindow()
+        if window is not None and hasattr(window, 'statusBar'):
+            window.statusBar().showMessage(
+                f'Error interno ({exc_type.__name__}): {exc}. Detalle en {log_path}', 15000)
+
+    log_path = install(notify)
+    app.setApplicationName(APP_NAME)
     app.setOrganizationName('ModGames44')
     app.setWindowIcon(QIcon(str(Path(__file__).resolve().parent / 'assets' / 'icons' / 'modgames44.ico')))
     apply_theme(app)

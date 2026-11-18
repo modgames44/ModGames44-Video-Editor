@@ -1,5 +1,4 @@
 """Geometría temporal de la Timeline. Independiente de PySide6 para pruebas."""
-import math
 
 
 def ruler_spacing(scale):

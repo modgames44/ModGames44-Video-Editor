@@ -82,6 +82,8 @@ def trim_linked(clips, clip_id, side, delta_ms, media_durations, minimum_ms=1):
         return False
     for clip in linked_group(clips, clip_id):
         if side == 'inicio':
+            from timeline.local_keys import shift_local_keys
+            shift_local_keys(clip, delta_ms)
             clip['start_ms'] += delta_ms
             clip['in_ms'] = clip.get('in_ms', 0) + delta_ms*float(clip.get('speed',1.))
             clip['duration_ms'] -= delta_ms

@@ -97,9 +97,9 @@ class ClipPropertiesPanel(QWidget):
             self.edit_audio.setEnabled(False)
             return
         kind = clip.get('kind', 'video')
-        self.info.setText(Path(str(clip.get('path', 'Archivo'))).name)
+        self.info.setText(clip.get('text','') if kind in ('title','subtitle') else Path(str(clip.get('path','Archivo'))).name)
         values = {
-            'kind': 'Video' if kind == 'video' else 'Audio',
+            'kind': {'video':'Video','audio':'Audio','title':'Título','subtitle':'Subtítulo','image':'Imagen'}.get(kind,'Otro'),
             'track': str(clip.get('track', '—')),
             'start': self._time(clip.get('start_ms', 0)),
             'duration': self._time(clip.get('duration_ms', 0)),
@@ -119,7 +119,7 @@ class ClipPropertiesPanel(QWidget):
                 'volume': 'Ver pista de audio vinculada',
                 'voice': '—', 'noise': '—',
             })
-        else:
+        elif kind=='audio':
             fx = validated_audio_effects(clip.get('audio_fx'))
             values.update({
                 'scale': '—', 'center': '—', 'censor': '—', 'color': '—',
@@ -127,6 +127,9 @@ class ClipPropertiesPanel(QWidget):
                 'voice': str(fx['voice']).capitalize(),
                 'noise': f'{fx["noise"] * 100:.0f} %',
             })
+        if kind in ('title','subtitle','image'):
+            values.update({'scale':'Superposición editable','center':'Ver panel Texto / Keyframes',
+                           'censor':'—','color':'—','volume':'—','voice':'—','noise':'—'})
         for key, label in self.fields.items():
             label.setText(str(values.get(key, '—')))
         self.edit_video.setEnabled(kind == 'video')

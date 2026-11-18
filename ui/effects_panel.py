@@ -1,10 +1,9 @@
 """Panel de efectos más utilizados, controles simples y confirmación de cambios."""
-from copy import deepcopy
 from pathlib import Path
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (QWidget,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,
     QDoubleSpinBox,QSpinBox,QCheckBox,QComboBox,QGroupBox,QScrollArea,QFormLayout,QFrame)
-from effects.model import merged_effects
+from effects.model import merged_effects, SPEED_MIN, SPEED_MAX
 
 
 class EffectsPanel(QWidget):
@@ -12,6 +11,7 @@ class EffectsPanel(QWidget):
     keyframeRequested=Signal(str)           # 'zoom' o 'censor'
     editMaskChanged=Signal(bool)
     clearRequested=Signal(str)
+    trackingRequested=Signal(str)
     def __init__(self,parent=None):
         super().__init__(parent)
         self._selected=None
@@ -33,14 +33,20 @@ class EffectsPanel(QWidget):
 
         speed=QGroupBox('Velocidad · cámara lenta y rápida');self.speed_group=speed
         f=QFormLayout(speed)
-        self.speed=QDoubleSpinBox();self.speed.setRange(0.25,4);self.speed.setSingleStep(.25)
+        self.speed=QDoubleSpinBox();self.speed.setRange(SPEED_MIN,SPEED_MAX)
+        # Paso adaptativo: 0.01 cerca de 0.1×, 1 cerca de 10×, 10 cerca de 100×.
+        self.speed.setStepType(QDoubleSpinBox.StepType.AdaptiveDecimalStepType)
         self.speed.setValue(1);self.speed.setDecimals(2);self.speed.setSuffix(' ×')
+        self.speed.setToolTip(f'De {SPEED_MIN:g}× (100 veces más lento) a {SPEED_MAX:g}× (timelapse). '
+                              'Puedes escribir cualquier valor.')
         f.addRow('Factor',self.speed)
-        speed_presets=QHBoxLayout()
-        for label,value in [('0.5×',.5),('1×',1.),('2×',2.),('4×',4.)]:
-            b=QPushButton(label);b.clicked.connect(lambda _,n=value:self.speed.setValue(n))
-            speed_presets.addWidget(b)
-        f.addRow(speed_presets)
+        for row in ([('0.1×',.1),('0.25×',.25),('0.5×',.5),('1×',1.)],
+                    [('2×',2.),('4×',4.),('8×',8.),('16×',16.),('50×',50.)]):
+            speed_presets=QHBoxLayout()
+            for label,value in row:
+                b=QPushButton(label);b.clicked.connect(lambda _,n=value:self.speed.setValue(n))
+                speed_presets.addWidget(b)
+            f.addRow(speed_presets)
         b=QPushButton('Aplicar velocidad');b.clicked.connect(self._apply_speed);f.addRow(b)
         layout.addWidget(speed)
 
@@ -68,6 +74,10 @@ class EffectsPanel(QWidget):
         self.edit_mask.toggled.connect(self.editMaskChanged.emit);f.addRow(self.edit_mask)
         b=QPushButton('◇ Fotograma clave de máscara');b.clicked.connect(lambda:self.keyframeRequested.emit('censor'))
         f.addRow(b)
+        self.track_button=QPushButton('◎ Seguir objeto · generar fotogramas clave')
+        self.track_button.setToolTip('Sigue el recuadro desde la posición actual del cabezal. Permite corregir después cada keyframe.')
+        self.track_button.clicked.connect(lambda: self._selected and self.trackingRequested.emit(self._selected))
+        f.addRow(self.track_button)
         b=QPushButton('Quitar censura');b.clicked.connect(self._request_clear_censor);f.addRow(b)
         f.addRow(QLabel('Arrastra el centro para mover; las esquinas para cambiar tamaño.'))
         layout.addWidget(censor)
@@ -99,6 +109,7 @@ class EffectsPanel(QWidget):
         for group in self.findChildren(QGroupBox):group.setEnabled(is_video)
         self.edit_mask.setEnabled(is_video)
         self.remove_censor.setEnabled(False)
+        self.track_button.setEnabled(False)
         if not is_video:
             self.stop_mask_editing()
             return
@@ -114,6 +125,7 @@ class EffectsPanel(QWidget):
         self.grayscale.setChecked(bool(fx['color']['grayscale']))
         self.mirror.setChecked(bool(fx['color']['mirror']))
         self.remove_censor.setEnabled(bool(fx['censor']['enabled']))
+        self.track_button.setEnabled(bool(fx['censor']['enabled']))
         if not fx['censor']['enabled']:
             self.stop_mask_editing()
 

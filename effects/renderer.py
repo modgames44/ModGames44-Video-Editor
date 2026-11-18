@@ -1,10 +1,11 @@
 """Render de efectos sobre Pillow. Sin Qt: comprobable con fotogramas sintéticos.
 
 El motor usa imágenes de previsualización reducidas para evitar bloquear Qt.
-No altera nunca el archivo original. Exportación de efectos aún no implementada.
+No altera nunca el archivo original. La exportación (exporter/render.py) aplica
+los mismos efectos, en el mismo orden y sobre la imagen fuente.
 """
 from PIL import Image, ImageFilter, ImageEnhance, ImageOps, ImageDraw
-from effects.model import merged_effects, censor_mask, zoom_state, valid_mask
+from effects.model import merged_effects, censor_mask, zoom_state
 
 
 def _zoom(image, state):
@@ -26,13 +27,16 @@ def _censor(image, effect, mask):
     if x>=right or y>=bottom:
         return image
     region=image.crop((x,y,right,bottom))
-    strength=max(1,int(effect.get('strength',18)))
+    strength=max(1,min(80,int(effect.get('strength',18))))
+    # Intensidad independiente de la resolución: se define en píxeles de una
+    # imagen de 1080 de alto. La exportación usa exactamente la misma escala
+    # (exporter.render.blur_radius / mosaic_block), así el monitor coincide.
     if effect.get('mode')=='mosaic':
-        size=max(2,min(min(region.size),round(strength*.8)))
+        size=max(2,min(min(region.size),round(strength*h/1080)))
         blurred=region.resize((max(1,region.width//size),max(1,region.height//size)),
                               Image.Resampling.BOX).resize(region.size,Image.Resampling.NEAREST)
     else:
-        blurred=region.filter(ImageFilter.GaussianBlur(radius=min(80,strength)))
+        blurred=region.filter(ImageFilter.GaussianBlur(radius=max(.5,strength*h/1080)))
     edge=max(0,round(float(effect.get('feather',0))*min(w,h)))
     if edge:
         # feather con imagen procesada en el ROI extendido, sin halos negros.

@@ -10,6 +10,22 @@ class MediaEngine:
         self.player.setAudioOutput(self.audio)
         self.player.setVideoOutput(getattr(video_output, "video_sink", video_output))
 
+    def set_internal_audio(self, enabled):
+        """Conecta o DESCONECTA el audio interno de QMediaPlayer.
+
+        En la Timeline el sonido lo produce el audio continuo (con efectos).
+        Antes sólo se silenciaba: Qt seguía decodificando y adaptando el audio
+        del archivo a la velocidad del clip (0.1×, 16×…), con carga inútil.
+        """
+        if enabled:
+            if self.player.audioOutput() is not self.audio:
+                self.player.setAudioOutput(self.audio)
+            self.audio.setMuted(False)
+        else:
+            self.audio.setMuted(True)
+            if self.player.audioOutput() is not None:
+                self.player.setAudioOutput(None)
+
     def load(self, path):
         self.player.stop()
         self.player.setSource(QUrl.fromLocalFile(path))

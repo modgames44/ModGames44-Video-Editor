@@ -14,7 +14,7 @@ import time
 from PySide6.QtCore import QObject, Signal, QUrl
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 
-from services.preview_audio import (WINDOW_MS, audio_signature, window_bounds,
+from services.preview_audio import (audio_signature, window_bounds,
                                     render_audio_window)
 from exporter.hardware import ffmpeg_candidates
 

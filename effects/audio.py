@@ -36,8 +36,9 @@ def audio_filter_chain(raw, speed=1.0):
     La limitación final de picos va sobre la mezcla completa del proyecto.
     """
     fx = validated_audio_effects(raw)
+    from effects.model import is_valid_speed
     speed = float(speed)
-    if not 0.25 <= speed <= 4.0 or not isfinite(speed):
+    if not is_valid_speed(speed):
         raise ValueError('Velocidad de audio fuera de rango')
     chain = []
     remaining = speed

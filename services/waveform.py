@@ -164,7 +164,6 @@ def get_waveform(path: str, ffmpeg_executable: str, cache_dir: str | None = None
 # La caché de ondas procesadas usa la MISMA cadena FFmpeg que la escucha
 # y la exportación. El efecto se calcula fuera del hilo de Qt.
 def effect_signature(settings) -> str:
-    import json
     from effects.audio import validated_audio_effects
     canonical = validated_audio_effects(settings)
     packed = json.dumps(canonical, sort_keys=True, separators=(',', ':'))
@@ -213,3 +212,17 @@ def waveform_gain_linear(db: float) -> float:
     if not math.isfinite(db):
         raise ValueError('Ganancia no finita')
     return 10.0 ** (db / 20.0)
+
+
+def combined_peaks(peaks: np.ndarray) -> np.ndarray:
+    """Envolvente única de L y R para DIBUJAR una sola onda.
+
+    `peaks` tiene forma (columnas, 2 canales, [mín, máx]). Devuelve
+    (columnas, [mín, máx]) tomando el pico más extremo de ambos canales, así
+    no se pierde ningún golpe que suene sólo en un lado. Es sólo visual: el
+    audio, la vista previa y la exportación siguen siendo estéreo.
+    """
+    peaks = np.asarray(peaks, dtype=np.float32)
+    if peaks.size == 0:
+        return np.zeros((0, 2), dtype=np.float32)
+    return np.stack((peaks[:, :, 0].min(axis=1), peaks[:, :, 1].max(axis=1)), axis=1)

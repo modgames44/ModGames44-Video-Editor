@@ -9,6 +9,7 @@ from effects.audio import validated_audio_effects
 
 class AudioEffectsPanel(QWidget):
     applyRequested = Signal(str, object)
+    silenceRequested = Signal()
 
     def __init__(self):
         super().__init__()
@@ -40,8 +41,18 @@ class AudioEffectsPanel(QWidget):
         btn.clicked.connect(self._apply)
         form.addRow(btn)
         outer.addWidget(group)
-        self.note = QLabel('Los cambios se escuchan al presionar Play en la Timeline y se exportan.\n'
-            'FFmpeg prepara audio por tramos en segundo plano; espera a que esté listo.')
+        silence_group = QGroupBox('Quitar silencios')
+        silence_layout = QVBoxLayout(silence_group)
+        help_text = QLabel('Detecta pausas en el clip seleccionado y propone cortes para revisarlos antes de aplicarlos.')
+        help_text.setWordWrap(True)
+        silence_layout.addWidget(help_text)
+        self.silence_button = QPushButton('Detectar y quitar silencios…')
+        self.silence_button.setToolTip('Analiza con FFmpeg y abre el plan de cortes en el Asistente IA. No modifica el archivo original.')
+        self.silence_button.clicked.connect(self.silenceRequested.emit)
+        silence_layout.addWidget(self.silence_button)
+        outer.addWidget(silence_group)
+        self.note = QLabel('Los ajustes de audio se escuchan durante Play y se exportan.\n'
+            'Quitar silencios propone cortes editables de la Timeline, no es un filtro que silencia la pista.')
         self.note.setWordWrap(True)
         outer.addWidget(self.note)
         outer.addStretch(1)

@@ -1,7 +1,7 @@
 """Metadatos de espacios de trabajo; persisten separadamente del proyecto .mg44."""
 from dataclasses import dataclass
 
-WORKSPACE_STATE_VERSION = 3  # el esquema visual de v0.4.2 ya no es compatible
+WORKSPACE_STATE_VERSION = 4  # el esquema visual de v0.4.2 ya no es compatible
 
 
 @dataclass(frozen=True)
@@ -21,16 +21,16 @@ class WorkspaceSpec:
 
 WORKSPACES = {
     'neon': WorkspaceSpec(
-        'neon', 'Cyber Neon',
-        'Proyecto a la izquierda, monitor central, efectos y propiedades a la derecha.',
-        'Proyecto', 'Herramientas', 'Efectos (futuro)', 'Propiedades',
-        '', 'Timeline', ('Asistente IA',), 'Audio Meter',
+        'neon','Cyber Neon',
+        'Herramientas y efectos accesibles mediante pestañas; editor despejado.',
+        'Proyecto','Herramientas','Efectos (futuro)','Propiedades',
+        '','Timeline',('Asistente IA',),'Audio Meter',
     ),
     'studio': WorkspaceSpec(
-        'studio', 'Cyber Studio',
-        'Catálogo de efectos arriba a la izquierda y proyecto debajo; propiedades a la derecha.',
-        'Efectos (futuro)', 'Proyecto', 'Propiedades', 'Audio Meter',
-        'Herramientas', 'Timeline', ('Asistente IA',),
+        'studio','Cyber Studio',
+        'Pestañas compactas de Proyecto, Efectos y Textos; Timeline protagonista.',
+        'Efectos (futuro)','Proyecto','Propiedades','Audio Meter',
+        'Herramientas','Timeline',('Asistente IA',),
     ),
 }
 

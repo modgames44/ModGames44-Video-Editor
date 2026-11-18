@@ -77,7 +77,7 @@ class ToolsPanel(QWidget):
         snap.setIconSize(QSize(25, 25))
         snap.setCheckable(True)
         snap.setChecked(True)
-        snap.setToolTip('Imán (Snapping): activar/desactivar')
+        snap.setToolTip('Imán: unir el inicio o final de clips al arrastrar y evitar solapamientos en la misma pista (activar/desactivar)')
         snap_icon = ICON_DIR / 'snap.png'
         if snap_icon.is_file(): snap.setIcon(QIcon(str(snap_icon)))
         else: snap.setText('SN')

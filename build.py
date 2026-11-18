@@ -14,6 +14,9 @@ from pathlib import Path
 import subprocess
 import sys
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from core.version import __version__  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent
 DIST = ROOT / 'dist'
 APP_NAME = 'ModGames44VideoEditor.exe'
@@ -87,8 +90,8 @@ def build_command():
         '--company-name=ModGames44',
         '--product-name=ModGames44 Video Editor',
         '--file-description=Editor de video ModGames44',
-        '--product-version=0.4.12.0',
-        '--file-version=0.4.12.0',
+        f'--product-version={__version__}.0',
+        f'--file-version={__version__}.0',
         f'--output-filename={APP_NAME}',
         f'--output-dir={DIST}',
         '--remove-output',

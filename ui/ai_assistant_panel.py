@@ -1,8 +1,8 @@
 """Interfaz opcional para propuestas de edición con validación humana."""
-from PySide6.QtCore import Qt, QObject, QRunnable, QThreadPool, Signal
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPlainTextEdit, QPushButton,
-    QCheckBox, QLineEdit, QGroupBox, QMessageBox,
+    QCheckBox, QLineEdit,
 )
 
 

@@ -1,0 +1,21 @@
+# Compilación privada (no forma parte del repositorio público)
+build.py
+nuitka-package.config.yml
+*.build/
+*.dist/
+dist/
+build/
+# Python / IDE
+__pycache__/
+*.py[cod]
+.venv/
+.vscode/
+.idea/
+# Proyectos y medios del usuario
+*.mg44
+*.mg44.autosave
+*.partial.mp4
+*.wav
+*.mp4
+*.mov
+*.mkv

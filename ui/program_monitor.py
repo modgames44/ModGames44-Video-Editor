@@ -1,7 +1,6 @@
 """Monitor escalable. Solo Play inicia reproducción; previsualizar no reproduce."""
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-                               QLabel, QSlider, QToolButton, QSizePolicy, QComboBox)
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QToolButton, QSizePolicy, QComboBox)
 from ui.effect_video_view import EffectVideoView
 
 

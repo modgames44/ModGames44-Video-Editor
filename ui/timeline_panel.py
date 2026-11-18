@@ -8,15 +8,14 @@ import math
 import uuid
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal, QRectF, QPointF, QRect, QEvent, QTimer
+from PySide6.QtCore import Qt, Signal, QRectF, QPointF, QRect, QEvent, QTimer, QSettings
 from PySide6.QtGui import QColor, QBrush, QPen, QPainter, QCursor, QPixmap, QPolygonF
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QGraphicsView, QGraphicsScene, QGraphicsRectItem, QGraphicsItem,
-    QGraphicsTextItem, QMenu, QSlider, QCheckBox,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QGraphicsView, QGraphicsScene, QGraphicsRectItem, QGraphicsItem,
+    QMenu, QSlider, QCheckBox,
 )
 
-from timeline.model import make_clip, end, close_gap, source_position
+from timeline.model import make_clip, end, source_position
 from timeline.editing import split_at, trim_bounds, trim_linked, remove_linked, unlink
 from timeline.history import History
 from timeline.zoom_math import ruler_spacing, format_ruler, zoom_scroll_value, clamp_clip_start
@@ -25,6 +24,7 @@ from timeline.thumbnail_math import thumbnail_source_time
 from timeline.painting_math import stable_visible_label
 from timeline.fades import fade_durations, fade_factor, clamp_fades, change_fade
 from timeline.track_layout import TRACK_LABELS, row_for_clip, track_for_row
+from timeline.snapping import plan_magnetic_move
 from timeline.viewport_math import (playhead_scene_x, viewport_scroll_for_time,
                                     needs_playback_follow, timeline_scene_width, scroll_correction,
                                     minimum_scene_width_for_scroll)
@@ -33,7 +33,7 @@ from services.media_visuals import VisualCache
 from ui.tools_panel import ICON_DIR
 from effects.model import merged_effects, add_keyframe, change_speed, valid_mask
 from effects.audio import validated_audio_effects
-from services.waveform import needs_processed_waveform, waveform_gain_linear
+from services.waveform import needs_processed_waveform, waveform_gain_linear, combined_peaks
 
 PX_SEC = 70
 HEADER = 76
@@ -53,7 +53,7 @@ class ClipItem(QGraphicsRectItem):
         self.kind=clip.get('kind','video')
         row=panel.row_of(clip)
         super().__init__(0,0,max(1,clip['duration_ms']/1000*panel.scale),panel.track_heights[row]-7)
-        self.setBrush(QBrush(QColor('#075a87' if self.kind=='video' else '#075a57')))
+        self.setBrush(QBrush(QColor('#5b4382' if self.kind in ('title','subtitle','image') else ('#075a87' if self.kind=='video' else '#075a57'))))
         self.setPen(QPen(QColor('#22c5e9')))
         self.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable |
                       QGraphicsItem.GraphicsItemFlag.ItemIsMovable |
@@ -61,6 +61,7 @@ class ClipItem(QGraphicsRectItem):
                       QGraphicsItem.GraphicsItemFlag.ItemUsesExtendedStyleOption)
         self.setPos(HEADER+clip['start_ms']/1000*panel.scale,panel.row_y(row)+3)
         self.old=None
+        self._dragging=False
         self._trim_side=None
         self._trim_origin=None
         self._trim_delta_ms=0
@@ -69,7 +70,7 @@ class ClipItem(QGraphicsRectItem):
         self._fade_preview_ms=None
         self._fade_anchor=0.0
         self.setAcceptHoverEvents(True)
-        self.setToolTip(f"{Path(clip['path']).name}\n{self.kind.upper()} | {clip['duration_ms']/1000:.2f} s | {clip.get('speed',1):.2f}×")
+        self.setToolTip(f"{clip.get('text',Path(clip['path']).name)}\n{self.kind.upper()} | {clip['duration_ms']/1000:.2f} s | {clip.get('speed',1):.2f}×")
 
     def paint(self,painter,option,widget=None):
         """Pintar el clip sin heredar pinceles de los manejadores de fade.
@@ -85,7 +86,10 @@ class ClipItem(QGraphicsRectItem):
         painter.setClipRect(r.adjusted(1,1,-1,-1))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.fillRect(r, QColor('#075a87' if self.kind=='video' else '#075a57'))
+        if self.kind in ('title','subtitle','image'):
+            painter.fillRect(r,QColor('#5b4382'))
+        else:
+            painter.fillRect(r, QColor('#075a87' if self.kind=='video' else '#075a57'))
         painter.setPen(QPen(QColor('#22c5e9'), 1))
         painter.drawRect(r.adjusted(0.5,0.5,-0.5,-0.5))
         # Sólo dibujar el tramo visible: clips de horas no generan millones de dibujos.
@@ -94,6 +98,8 @@ class ClipItem(QGraphicsRectItem):
         right=min(int(r.width())-1,int(exposed.right())+3)
         if right>left:
             if self.kind=='audio':self._draw_audio(painter,clip,r,left,right)
+            elif self.kind in ('title','subtitle','image'):
+                painter.fillRect(QRectF(left,21,right-left,max(1,r.height()-25)),QColor('#3c275d'))
             else:self._draw_video(painter,clip,r,left,right)
         # IMPORTANTE: el texto NO puede depender de option.exposedRect ni de
         # «left». Qt solo repinta una banda estrecha bajo el cabezal cada tick.
@@ -103,12 +109,15 @@ class ClipItem(QGraphicsRectItem):
         if label is not None:
             label_x, label_width = label
             metrics = painter.fontMetrics()
-            title = Path(clip['path']).name
+            title = ('T: ' + clip.get('text','')) if self.kind in ('title','subtitle') else ('Imagen: '+Path(clip['path']).name if self.kind=='image' else Path(clip['path']).name)
             if self.kind == 'audio':
                 fx = validated_audio_effects(clip.get('audio_fx'))
                 if (fx['volume_db'] or fx['noise'] or fx['normalize'] or
                         fx['voice'] != 'none'):
                     title += '  · FX'
+            if clip.get('link') and self.kind in ('video','audio'):
+                # Indica que se mueve, corta y borra junto con su pareja.
+                title = '🔗 ' + title
             filename = metrics.elidedText(
                 title, Qt.TextElideMode.ElideRight, int(label_width))
             if filename:
@@ -226,15 +235,23 @@ class ClipItem(QGraphicsRectItem):
     def _draw_audio(self,painter,clip,r,left,right):
         top=21
         available=max(8,r.height()-top-2)
-        mid1=top+available*0.25
-        mid2=top+available*0.75
-        half=max(2,available*0.245)
+        stereo=self.panel.stereo_waves
+        if stereo:
+            mid1=top+available*0.25
+            mid2=top+available*0.75
+            half=max(2,available*0.245)
+        else:
+            # Una sola onda con toda la altura: envolvente de L y R. El audio
+            # sigue siendo estéreo; sólo cambia el dibujo.
+            mid1=mid2=top+available*0.5
+            half=max(2,available*0.49)
         painter.setPen(QPen(QColor('#3c988e'),1))
         painter.drawLine(QPointF(left,mid1),QPointF(right,mid1))
-        painter.drawLine(QPointF(left,mid2),QPointF(right,mid2))
+        if stereo:
+            painter.drawLine(QPointF(left,mid2),QPointF(right,mid2))
         # Igual que el nombre: etiquetas fijas respecto al viewport, nunca
         # respecto a la franja de repintado parcial del playhead.
-        channel_label = self._stable_label(max_width=18)
+        channel_label = self._stable_label(max_width=18) if stereo else None
         if channel_label is not None:
             channel_x, _ = channel_label
             painter.setPen(QColor('#b2dfec'))
@@ -253,6 +270,9 @@ class ClipItem(QGraphicsRectItem):
         start_ms=clip.get('in_ms',0)+left/self.panel.scale*1000*float(clip.get('speed',1.))
         end_ms=clip.get('in_ms',0)+right/self.panel.scale*1000*float(clip.get('speed',1.))
         peaks=wave.peaks(start_ms,end_ms,right-left)
+        channels=((0,mid1),(1,mid2)) if stereo else ((0,mid1),)
+        if not stereo:
+            peaks=combined_peaks(peaks)[:,None,:]
         painter.setPen(QPen(QColor('#33e2b9' if self.panel.show_processed_waves else '#6daea4'),1))
         # Misma escala de visualización para original/procesado, nunca
         # autonormalizar cada una por separado (ocultaría cambios de volumen).
@@ -261,7 +281,7 @@ class ClipItem(QGraphicsRectItem):
             gain *= waveform_gain_linear(fx['volume_db'])
         for col, values in enumerate(peaks):
             x=left+col
-            for ch,mid in ((0,mid1),(1,mid2)):
+            for ch,mid in channels:
                 low,high=values[ch]
                 center_timeline_ms=clip['start_ms']+(x+0.5)/self.panel.scale*1000
                 envelope=fade_factor(clip,center_timeline_ms)
@@ -271,8 +291,16 @@ class ClipItem(QGraphicsRectItem):
 
     def itemChange(self,change,value):
         if change==QGraphicsItem.GraphicsItemChange.ItemPositionChange and self.scene() is not None:
-            # Nunca permitir tiempo negativo. La posición del clip es la del modelo.
-            return QPointF(max(HEADER,float(value.x())),float(value.y()))
+            x=max(HEADER,float(value.x()))
+            y=float(value.y())
+            # El imán debe verse DURANTE el arrastre, no solamente al soltar.
+            # Evitar mover/recortar/crear items desde itemChange recursivamente.
+            if self._dragging and self.panel.snap and self.panel.tool=='select':
+                delta, _ = self.panel.preview_move(self.clip_id, x, y, self.rect().height())
+                model = self.panel.get_clip(self.clip_id)
+                if model is not None:
+                    x = HEADER + (model['start_ms'] + delta) * self.panel.scale / 1000
+            return QPointF(x,y)
         return super().itemChange(change,value)
 
     def _edge_under_pointer(self, local_x):
@@ -332,6 +360,8 @@ class ClipItem(QGraphicsRectItem):
                     event.accept()
                     return
         self.old=self.pos()
+        self._dragging=(self.panel.tool=='select' and
+                        event.button()==Qt.MouseButton.LeftButton)
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self,event):
@@ -379,6 +409,7 @@ class ClipItem(QGraphicsRectItem):
             event.accept()
             return
         super().mouseReleaseEvent(event)
+        self._dragging=False
         if self.old is not None and self.pos()!=self.old:
             self.panel.move_item(self)
         self.old=None
@@ -543,6 +574,21 @@ class TimelineView(QGraphicsView):
             event.accept()
         else:
             event.ignore()
+
+    def contextMenuEvent(self,event):
+        """El clic derecho actúa sobre el clip bajo el cursor.
+
+        Qt sólo selecciona con el botón izquierdo: antes, «Desvincular» o
+        «Eliminar» del menú contextual se aplicaban a la selección ANTERIOR
+        (o a nada), y luego al borrar el audio desaparecía también el video
+        porque seguían vinculados. Si el clip ya forma parte de una
+        selección múltiple, se respeta esa selección.
+        """
+        clip=self._clip_under_pointer(event.pos())
+        if clip is not None and not clip.isSelected():
+            self.scene().clearSelection()
+            clip.setSelected(True)
+        super().contextMenuEvent(event)
 
     def _clip_under_pointer(self,point):
         # El indicador de la cuchilla es una línea no interactiva encima del clip.
@@ -715,9 +761,13 @@ class TimelinePanel(QWidget):
     def __init__(self):
         super().__init__()
         self.clips=[];self.history=History();self.scale=PX_SEC;self.playhead=0
+        self.ripple_enabled=False
         self._row_backgrounds=[]
         self.durations={};self.snap=True;self.tool='select'
         self.show_processed_waves=True
+        # Onda única por defecto (más legible); «L/R» muestra los dos canales.
+        self._settings=QSettings('ModGames44','VideoEditor')
+        self.stereo_waves=self._settings.value('timeline/stereo_waves',False,type=bool)
         self.track_heights=[48,48,86,125,65,65]
         self.visuals=VisualCache(self)
         self.visuals.updated.connect(self._visual_updated)
@@ -738,6 +788,12 @@ class TimelinePanel(QWidget):
         self.processed_wave_toggle.setToolTip('Comparar las ondas originales con las procesadas. La ganancia se visualiza inmediatamente; los demás efectos se calculan en segundo plano.')
         self.processed_wave_toggle.toggled.connect(self._set_processed_waves)
         bar.addWidget(self.processed_wave_toggle)
+        self.stereo_wave_toggle=QCheckBox('L/R')
+        self.stereo_wave_toggle.setChecked(self.stereo_waves)
+        self.stereo_wave_toggle.setToolTip('Mostrar las ondas de los canales izquierdo y derecho por separado. '
+                                           'Desactivado: una sola onda. El audio siempre es estéreo.')
+        self.stereo_wave_toggle.toggled.connect(self._set_stereo_waves)
+        bar.addWidget(self.stereo_wave_toggle)
         layout.addLayout(bar)
         self.scene=QGraphicsScene(self)
         self.scene.selectionChanged.connect(self._on_selection_changed)
@@ -748,6 +804,11 @@ class TimelinePanel(QWidget):
         self.view.scrubStarted.connect(self.scrub_started)
         self.view.scrubPreview.connect(self.scrub_preview)
         self.refresh()
+
+    def _set_stereo_waves(self, state):
+        self.stereo_waves=bool(state)
+        self._settings.setValue('timeline/stereo_waves',self.stereo_waves)
+        self.scene.update()
 
     def _set_processed_waves(self, state):
         self.show_processed_waves=bool(state)
@@ -1034,7 +1095,8 @@ class TimelinePanel(QWidget):
             self.scene.addItem(item)
             item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable,self.tool=='select')
             if clip['id'] in chosen:item.setSelected(True)
-            self.visuals.request(clip['path'],need_wave=(clip.get('kind')=='audio'))
+            if clip.get('kind') not in ('title','subtitle','image'):
+                self.visuals.request(clip['path'],need_wave=(clip.get('kind')=='audio'))
         self.scene.setSceneRect(0,0,width,RULER_H+sum(self.track_heights)+5)
         # QGraphicsView mantiene su propio rectángulo y rango de barras.
         # Sin sincronizarlo, Qt puede conservar un máximo de scroll antiguo
@@ -1075,6 +1137,15 @@ class TimelinePanel(QWidget):
         ids={item.clip_id for item in self.scene.selectedItems() if isinstance(item,ClipItem)}
         return next((clip for clip in self.clips if clip['id'] in ids),None)
 
+    def select_clip_id(self,clip_id):
+        """Selecciona una superposición en Timeline desde el monitor."""
+        for item in self.scene.items():
+            if isinstance(item,ClipItem) and item.clip_id==clip_id:
+                self.scene.clearSelection()
+                item.setSelected(True)
+                return True
+        return False
+
     def default_duration(self,path):
         if path not in self.durations:self.durations[path]=probe(path)['duration_ms'] or 10000
         return self.durations[path]
@@ -1096,11 +1167,28 @@ class TimelinePanel(QWidget):
                 item.setSelected(True);break
         self.changed.emit()
 
+    def add_text_clip(self,clip):
+        self.history.record(self.clips)
+        self.clips.append(copy.deepcopy(clip))
+        self.refresh()
+        for item in self.scene.items():
+            if isinstance(item,ClipItem) and item.clip_id==clip['id']:
+                item.setSelected(True);break
+        self.changed.emit()
+        return clip['id']
+
+    def apply_transition(self,clip_id,duration_ms=600,style='dissolve'):
+        from timeline.transitions import crossfade_adjacent
+        self.history.record(self.clips)
+        if not crossfade_adjacent(self.clips,clip_id,duration_ms,style):
+            self.history.cancel_last();return False
+        self.refresh();self.changed.emit()
+        return True
+
     def set_clip_fade(self,clip_id,side,duration_ms):
         """Los fades pertenecen al clip individual, aunque esté vinculado."""
         clip=self.get_clip(clip_id)
         if clip is None:return False
-        before=fade_durations(clip)
         proposed=copy.deepcopy(clip)
         if not change_fade(proposed,side,duration_ms):
             self.refresh()
@@ -1125,29 +1213,30 @@ class TimelinePanel(QWidget):
             self.refresh();self.changed.emit()
         return len(removed)
 
-    def move_item(self,item):
-        clip=next((clip for clip in self.clips if clip['id']==item.clip_id),None)
-        if clip is None:return
-        start=clamp_clip_start((item.x()-HEADER)/self.scale*1000)
-        if self.snap:
-            edges=[0]+[value for other in self.clips
-                       if other['id']!=clip['id'] and other not in self._linked(clip)
-                       for value in (other['start_ms'],end(other))]
-            nearest=min(edges,key=lambda value:abs(value-start))
-            if abs(nearest-start)<150:start=nearest
-        row=self.row_at(item.y()+item.rect().height()/2)
+    def preview_move(self,clip_id,scene_x,scene_y,item_height):
+        """Mismo resultado durante el arrastre y al soltar el clip."""
+        clip=self.get_clip(clip_id)
+        if clip is None:return 0,0
+        row=self.row_at(scene_y+item_height/2)
         target_row=row if row is not None else self.row_of(clip)
         track=track_for_row(clip.get('kind','video'),target_row,clip['track'])
-        partners=self._linked(clip)
-        delta=start-clip['start_ms']
-        delta=max(delta,-min([clip['start_ms']]+[other['start_ms'] for other in partners]))
+        start=clamp_clip_start((scene_x-HEADER)/self.scale*1000)
+        return plan_magnetic_move(self.clips,clip_id,start,track,
+                                  enabled=self.snap,pixels_per_second=self.scale,
+                                  playhead_ms=self.playhead)
+
+    def move_item(self,item):
+        clip=self.get_clip(item.clip_id)
+        if clip is None:return
+        delta,track=self.preview_move(item.clip_id,item.x(),item.y(),item.rect().height())
         if delta==0 and track==clip['track']:
             self.refresh();return
         self.history.record(self.clips)
-        clip['start_ms']+=delta;clip['track']=track
-        for other in partners:
-            # El movimiento horizontal sigue vinculado. La asignación de
-            # pistas es independiente: V1 no obliga a colocar audio en A1.
+        clip['start_ms']+=delta
+        clip['track']=track
+        for other in self._linked(clip):
+            # Audio/vídeo enlazados siempre se desplazan juntos. El cambio
+            # vertical afecta solo a la pista del clip arrastrado.
             other['start_ms']+=delta
         self.refresh();self.changed.emit()
 
@@ -1178,7 +1267,7 @@ class TimelinePanel(QWidget):
         self.history.record(self.clips)
         new_id=split_at(self.clips,clip_id,time_ms)
         if new_id is None:
-            self.history.past.pop()
+            self.history.cancel_last()
             return False
         self.refresh()
         self.scene.clearSelection()
@@ -1204,27 +1293,35 @@ class TimelinePanel(QWidget):
         if not ids:
             return False
         self.history.record(self.clips)
-        if remove_linked(self.clips,ids):
+        from timeline.ripple import ripple_remove
+        removed=(ripple_remove(self.clips,ids) if self.ripple_enabled else remove_linked(self.clips,ids))
+        if removed:
             self.refresh();self.changed.emit()
             self.info.emit('Clips eliminados · Ctrl+Z para deshacer')
             return True
-        self.history.past.pop()
+        self.history.cancel_last()
         return False
 
     def unlink_selected(self):
         ids={item.clip_id for item in self.scene.selectedItems() if isinstance(item,ClipItem)}
-        if not ids or not any(c['id'] in ids and c.get('link') for c in self.clips):
+        if not ids:
+            self.info.emit('Selecciona primero el clip que quieres desvincular')
+            return False
+        if not any(c['id'] in ids and c.get('link') for c in self.clips):
+            self.info.emit('Ese clip ya está desvinculado: puedes borrarlo o moverlo por separado')
             return False
         self.history.record(self.clips)
         unlink(self.clips,ids)
         self.refresh();self.changed.emit()
-        self.info.emit('Audio y vídeo desvinculados')
+        self.info.emit('Audio y vídeo desvinculados · selecciona sólo el que quieras borrar')
         return True
 
     def preview_trim_delta(self,clip_id,side,delta_ms):
         group=self._linked(next((c for c in self.clips if c['id']==clip_id),{}))
         for c in [x for x in self.clips if x['id']==clip_id]+group:
-            if c['path'] not in self.durations:
+            if c.get('kind') in ('title','subtitle','image'):
+                self.durations[c['path']]=max(self.durations.get('',0),c.get('in_ms',0)+3600000)
+            elif c['path'] not in self.durations:
                 self.default_duration(c['path'])
         low,high=trim_bounds(self.clips,clip_id,side,self.durations)
         delta=max(low,min(high,int(delta_ms)))
@@ -1251,7 +1348,7 @@ class TimelinePanel(QWidget):
             self.refresh();self.changed.emit()
             self.info.emit(f'Recorte de {side}: {delta_ms:+d} ms')
             return True
-        self.history.past.pop()
+        self.history.cancel_last()
         self.refresh()
         return False
 
@@ -1260,15 +1357,15 @@ class TimelinePanel(QWidget):
         self.set_tool('trim_start' if side=='inicio' else 'trim_end')
 
     def close_gaps(self):
-        self.history.record(self.clips)
-        for track in range(3):close_gap(self.clips,track,'video')
-        for clip in self.clips:
-            if clip.get('kind')=='video':
-                for other in self._linked(clip):other['start_ms']=clip['start_ms']
-        for track in range(3):
-            independent=[c for c in self.clips if c.get('kind')=='audio' and not c.get('link') and c.get('track')==track]
-            close_gap(independent,track,'audio')
+        from timeline.model import close_all_gaps
+        before=copy.deepcopy(self.clips)
+        close_all_gaps(self.clips)
+        if self.clips==before:
+            self.info.emit('No hay huecos que cerrar')
+            return
+        self.history.record(before)
         self.refresh();self.changed.emit()
+        self.info.emit('Huecos cerrados · Ctrl+Z para deshacer')
 
     def undo(self):
         previous=self.history.undo(self.clips)

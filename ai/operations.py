@@ -7,8 +7,7 @@ from __future__ import annotations
 
 import copy
 import math
-from dataclasses import dataclass
-from timeline.model import active, end, close_gap
+from timeline.model import active, end, close_all_gaps
 from timeline.editing import split_at, linked_group, remove_linked
 
 MAX_OPERATIONS = 80
@@ -93,16 +92,7 @@ def _one(clips, op, messages):
         messages.append(f'Mover clip a {position/1000:.3f} s (y su audio vinculado).')
         return None
     if name == 'close_gaps':
-        for track in range(3):
-            close_gap(clips, track, 'video')
-        for clip in clips:
-            if clip.get('kind') == 'video':
-                for partner in linked_group(clips, clip['id']):
-                    if partner['id'] != clip['id'] and partner.get('kind') == 'audio':
-                        partner['start_ms'] = clip['start_ms']
-        for track in range(3):
-            independent = [c for c in clips if c.get('kind') == 'audio' and not c.get('link') and c.get('track') == track]
-            close_gap(independent, track, 'audio')
+        close_all_gaps(clips)
         messages.append('Cerrar espacios entre clips en todas las pistas.')
         return None
     if name == 'seek':

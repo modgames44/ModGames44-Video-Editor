@@ -17,6 +17,7 @@ class EffectCatalogPanel(QWidget):
             ('Voz tipo podcast', 'voice'),
             ('Ecualización de voz', 'voice'),
             ('Reducción de ruido', 'noise'),
+            ('Quitar silencios', 'silence'),
         )),
     )
 

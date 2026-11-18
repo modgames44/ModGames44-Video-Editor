@@ -1,29 +1,36 @@
-"""Límites temporales de clips para reproducir segmentos cortados.
+"""Límites de reproducción entre clips: detener únicamente ante huecos reales.
 
-No depende de Qt. La continuidad entre clips consecutivos no debe
-provocar un salto sobre el borde de edición cuando stop_at_cuts=True.
+El corte (incluido Quitar silencios) crea IDs distintos, pero no debe
+interrumpir Play si existe material audiovisual inmediatamente después.
+Funciones puras, independientes de Qt.
 """
 from timeline.model import end
 
 
 def playback_end(clips, current_id):
-    """Devuelve el instante exacto del final del segmento actual, o None.
+    """Final donde comienza un hueco real, o None si sigue material AV.
 
-    Se utiliza el ID del clip en reproducción, no el fin de la secuencia:
-    un corte divide el clip en dos IDs, aunque sus bordes sean contiguos.
+    Se considera continuidad cuando un clip de vídeo o audio, de la misma u
+    otra pista, cubre el instante del borde. Las capas de texto/imagen por sí
+    solas no obligan a detener la reproducción de audio/vídeo.
     """
-    if current_id is None:
+    current = next((c for c in clips if c['id'] == current_id), None)
+    if not current or current.get('kind') not in ('video', 'audio'):
         return None
-    for clip in clips:
-        if clip['id'] == current_id:
-            return end(clip)
-    return None
+    boundary = end(current)
+    if any(other['id'] != current_id and
+           other.get('kind') in ('video', 'audio') and
+           other['start_ms'] <= boundary < end(other)
+           for other in clips):
+        return None
+    return boundary
 
 
 def limited_position(clips, current_id, proposed_ms, stop_at_cuts=True):
-    """Limita el tiempo al siguiente borde de corte sin sobrepasarlo.
+    """(nueva_posición, detener): limitar solamente ante un hueco.
 
-    Devuelve (tiempo_nuevo, detener). Nunca recorta en modo continuo.
+    `stop_at_cuts` se mantiene como nombre por compatibilidad con proyectos y
+    preferencias anteriores, pero ahora significa «detener en huecos».
     """
     proposed_ms = max(0, int(proposed_ms))
     if not stop_at_cuts:

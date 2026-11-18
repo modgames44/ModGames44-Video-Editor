@@ -5,7 +5,6 @@ Modelo no destructivo. Las duraciones se expresan en milisegundos del clip
 """
 from __future__ import annotations
 
-import math
 
 
 def fade_durations(clip):

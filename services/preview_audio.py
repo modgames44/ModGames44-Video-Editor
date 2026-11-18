@@ -8,12 +8,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
 import os
 from pathlib import Path
 import subprocess
 
 from effects.audio import audio_filter_chain
+from effects.keyframe_expressions import ffmpeg_expression
+from effects.model import is_valid_speed
 from timeline.model import end, source_position
 from timeline.fades import audio_fade_filters
 
@@ -37,7 +38,7 @@ def audio_clips_in_window(clips, start_ms, duration_ms):
 def audio_signature(clips):
     """Solo el audio: editar color o máscara no fuerza a regenerar WAV."""
     fields = ('path', 'start_ms', 'in_ms', 'duration_ms', 'speed', 'audio_fx',
-              'kind', 'track', 'fade_in_ms', 'fade_out_ms')
+              'kind', 'track', 'fade_in_ms', 'fade_out_ms', 'volume_keys')
     audio = [{k: c.get(k) for k in fields} for c in clips
              if c.get('kind') == 'audio']
     payload = json.dumps(audio, ensure_ascii=False, sort_keys=True, default=str)
@@ -69,7 +70,7 @@ def build_audio_preview_command(clips, start_ms, duration_ms, destination,
     for c, begin, finish in audio_clips_in_window(clips, start_ms, duration_ms):
         source_start = source_position(c, begin)
         speed = float(c.get('speed', 1.))
-        if not math.isfinite(speed) or not .25 <= speed <= 4.:
+        if not is_valid_speed(speed):
             raise ValueError('Velocidad fuera de rango')
         length_ms = finish - begin
         source_ms = length_ms * speed
@@ -83,6 +84,11 @@ def build_audio_preview_command(clips, start_ms, duration_ms, destination,
                  '-i', str(path)]
         filters = [f'atrim=duration={_sec(source_ms)}', 'asetpts=PTS-STARTPTS']
         filters += audio_filter_chain(c.get('audio_fx'), speed)
+        if c.get('volume_keys'):
+            # El tiempo 't' de FFmpeg se reinicia con cada ventana.
+            local_offset=(begin-c['start_ms'])/1000
+            expr=ffmpeg_expression(c['volume_keys'],'volume',1,time='t',offset=-local_offset)
+            filters.append(f"volume='{expr}':eval=frame")
         filters += audio_fade_filters(c, offset_ms=begin-c['start_ms'])
         filters += ['aresample=48000', 'aformat=channel_layouts=stereo',
                     f'atrim=duration={_sec(length_ms)}',
